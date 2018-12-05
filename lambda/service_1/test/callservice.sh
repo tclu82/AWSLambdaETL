@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # JSON object to pass to Lambda Function
-json={"\"row\"":50,"\"col\"":10,"\"bucketname\"":"\"tcss562.group.project\"","\"filename\"":"\"data/100\u0020Sales\u0020Records.csv\""}
+json={""\"bucketname\"":"\"tcss562.group.project\"","\"filename\"":"\"data/100\u0020Sales\u0020Records.csv\""}
 
 echo $json
 echo "Invoking Lambda function using API Gateway"
