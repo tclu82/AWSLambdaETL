@@ -126,16 +126,9 @@ public class Service1DataTransformation implements RequestHandler<Request, Respo
         ObjectMetadata meta = new ObjectMetadata();
         meta.setContentLength(bytes.length);
         meta.setContentType("text/plain");
-
-        // Create new file on S3
-//        AmazonS3 s3Client2 = AmazonS3ClientBuilder.standard().build();
-
         String[] names = filename.split("/");
         String filename2 = "TransformedData/" + names[names.length -1];
-       
         s3Client.putObject(bucketname, filename2, is, meta);
-        
-
         r.setValue("Bucket: " + bucketname + " filename: " + filename + " processed.");
         return r;
     }
@@ -206,25 +199,10 @@ public class Service1DataTransformation implements RequestHandler<Request, Respo
 
         // Create an instance of the class
         Service1DataTransformation lt = new Service1DataTransformation();
-
-        // Create a request object
-//        String bucketname = args[0];
-//        String filename = args[1];
-//        int row = Integer.parseInt(args[2]);
-//        int col = Integer.parseInt(args[3]);
-//        Request req = new Request(bucketname, filename, row, col);
         Request req = new Request();
-
-        // Grab the name from the cmdline from arg 0
-//        String name = (args.length > 0 ? args[0] : "");
-        // Load the name into the request object
-        // req.setName(name);
-        // Report name to stdout
         System.out.println("cmd-line param name=" + req.getBucketname());
-
         // Run the function
-         Response resp = lt.handleRequest(req, c);
-
+        Response resp = lt.handleRequest(req, c);
         // Print out function result
         System.out.println("function result:" + resp.toString());
     }
