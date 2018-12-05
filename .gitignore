@@ -1,4 +1,12 @@
-/lambda/java_template/target/
+# Java
 /lambda/service_1/target/
+
+# IDEA files
 .idea
 *.iml
+
+# VS Code
+.vscode
+
+# MacOS
+.DS_Store
