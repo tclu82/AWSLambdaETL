@@ -1,5 +1,6 @@
 # Java
-/lambda/service_1/target/
+/lambda/*/target/
+/lambda/*/bin
 
 # IDEA files
 .idea
