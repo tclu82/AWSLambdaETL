@@ -13,18 +13,14 @@ public class Request {
 
     private String bucketname;
     private String filename;
-    private int row;
-    private int col;
 
     public Request() {
     }
 
-    public Request(String bucketname, String fileName, int row, int col) {
+    public Request(String bucketname, String fileName) {
         this();
         this.bucketname = bucketname;
         this.filename = fileName;
-        this.row = row;
-        this.col = col;
     }
 
     public String getBucketname() {
@@ -41,21 +37,5 @@ public class Request {
     
     public void setFilename(String filename) {
         this.filename = filename;
-    }
-
-    public int getRow() {
-        return row;
-    }
-    
-    public void setRow(int row) {
-        this.row = row;
-    }
-
-    public int getCol() {
-        return col;
-    }
-    
-    public void setCol(int col) {
-        this.col = col;
     }
 }

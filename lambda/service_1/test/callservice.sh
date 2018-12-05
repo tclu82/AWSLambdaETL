@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # JSON object to pass to Lambda Function
-json={"\"row\"":50,"\"col\"":10,"\"bucketname\"":\"tcss562.group.project\"","\"filename\"":\"data/100 Sales Records.csv\""}
+json={"\"row\"":50,"\"col\"":10,"\"bucketname\"":"\"tcss562.group.project\"","\"filename\"":"\"data/100\u0020Sales\u0020Records.csv\""}
 
 echo $json
 echo "Invoking Lambda function using API Gateway"
-time output=`curl -s -H "Content-Type: application/json" -X POST -d  $json https://7kczqayj0d.execute-api.us-east-1.amazonaws.com/processCSV_dev`
+time output=`curl -s -H "Content-Type: application/json" -X POST -d  $json https://2iued6l2ak.execute-api.us-east-1.amazonaws.com/ETL_DEV/service1-data-transformation`
 
 echo ""
 echo "CURL RESULT:"

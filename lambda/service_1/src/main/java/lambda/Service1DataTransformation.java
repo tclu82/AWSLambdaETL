@@ -22,15 +22,24 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * uwt.lambda_test::handleRequest
  *
  * @author wlloyd
  */
-public class ProcessCSV implements RequestHandler<Request, Response> {
+public class Service1DataTransformation implements RequestHandler<Request, Response> {
 
     static String CONTAINER_ID = "/tmp/container-id";
     static Charset CHARSET = Charset.forName("US-ASCII");
@@ -49,8 +58,6 @@ public class ProcessCSV implements RequestHandler<Request, Response> {
         // *********************************************************************
         // Implement Lambda Function Here
         // *********************************************************************
-        int row = request.getRow();
-        int col = request.getCol();
         String bucketname = request.getBucketname();
         String filename = request.getFilename();
 
@@ -62,19 +69,73 @@ public class ProcessCSV implements RequestHandler<Request, Response> {
         //scanning data line by line
         String textToUpload = "";
         Scanner scanner = new Scanner(objectData);
+        StringWriter sw = new StringWriter();
+        String line = scanner.nextLine();
+        // Add column [Order Processing Time] at the end of first row
+        line += ",Order Processing Time,Gross Margin\n";
+        sw.append(line);
+        // Check duplication order ID
+        Set<Long> orderIdSet = new HashSet<>();
+        // Build a map
+        String[] p1 = {"L", "M", "H", "C"};
+        String[] p2 = {"Low", "Medium", "High", "Critical"};
+        Map<String, String> priorityMap = new HashMap<>();
+        for (int i=0; i<p1.length; i++) {
+            priorityMap.put(p1[i], p2[i]);
+        }
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
         while (scanner.hasNext()) {
-            textToUpload += scanner.nextLine();
+            line = scanner.nextLine();
+            String[] token = line.split(",");
+            // Calculate processing days
+            String orderDateString = token[5];
+            String shipDateString = token[7];
+            int processingDays = 0;
+            long orderId = Long.parseLong(token[6]);
+            // Duplication detect, ignore current record
+            if (orderIdSet.contains(orderId)) {
+                System.out.println("Duplication detect: " + orderId);
+                continue;
+            }
+            orderIdSet.add(orderId);
+            try {
+                Date orderDate = dateFormat.parse(orderDateString);
+                Date shipDate = dateFormat.parse(shipDateString);
+                long difference = shipDate.getTime() - orderDate.getTime();
+                processingDays = (int) (difference / 1000 / 60/ 60 / 24);
+            } catch (ParseException ex) {
+                Logger.getLogger(Service1DataTransformation.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            // Calculate Gross Margin
+            double profit = Double.parseDouble(token[token.length -1]);
+            double revenue = Double.parseDouble(token[token.length -3]);
+            double grossMargin = profit / revenue;
+            // Map "L" to "Low", "M" to "Medium", "H" to "High", and "C" to "Critical"
+            String priority = token[4];
+            token[4] = priorityMap.get(priority);
+            // Convert to String and write back to StringWriter.
+            line = String.join(",", token);
+            String lastToken = String.format(",%d,%.2f\n", processingDays, grossMargin);
+            line += lastToken;
+            sw.append(line);
         }
         scanner.close();
         
-        long total = 0;
-        double avg = 0.0;
+        byte[] bytes = sw.toString().getBytes(StandardCharsets.UTF_8);
+        InputStream is = new ByteArrayInputStream(bytes);
+        ObjectMetadata meta = new ObjectMetadata();
+        meta.setContentLength(bytes.length);
+        meta.setContentType("text/plain");
+
+        // Create new file on S3
+//        AmazonS3 s3Client2 = AmazonS3ClientBuilder.standard().build();
+
+        String[] names = filename.split("/");
+        String filename2 = "TransformedData/" + names[names.length -1];
+       
+        s3Client.putObject(bucketname, filename2, is, meta);
         
-        logger.log("ProcessCSV bucketname:" + bucketname 
-                + " filename:" + filename 
-                + " avg­element:" + avg 
-                + " total:" + total);
-        
+
         r.setValue("Bucket: " + bucketname + " filename: " + filename + " processed.");
         return r;
     }
@@ -144,7 +205,7 @@ public class ProcessCSV implements RequestHandler<Request, Response> {
         };
 
         // Create an instance of the class
-        ProcessCSV lt = new ProcessCSV();
+        Service1DataTransformation lt = new Service1DataTransformation();
 
         // Create a request object
 //        String bucketname = args[0];
@@ -162,7 +223,7 @@ public class ProcessCSV implements RequestHandler<Request, Response> {
         System.out.println("cmd-line param name=" + req.getBucketname());
 
         // Run the function
-        Response resp = lt.handleRequest(req, c);
+         Response resp = lt.handleRequest(req, c);
 
         // Print out function result
         System.out.println("function result:" + resp.toString());
