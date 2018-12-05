@@ -5,8 +5,8 @@
 .idea
 *.iml
 
-# # VS Code
-# .vscode
+# VS Code
+.vscode
 
-# # MacOS
-# .DS_Store
+# MacOS
+.DS_Store
