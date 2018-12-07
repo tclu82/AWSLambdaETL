@@ -1,6 +1,8 @@
 # Java
 /lambda/*/target/
 /lambda/*/bin
+.settings
+.project
 
 # IDEA files
 .idea
