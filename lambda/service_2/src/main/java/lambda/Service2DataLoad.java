@@ -13,21 +13,17 @@ import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import faasinspector.register;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.File;
 import java.nio.charset.Charset;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Level;
@@ -38,7 +34,7 @@ import java.util.logging.Logger;
  *
  * @author wlloyd
  */
-public class Service1DataTransformation implements RequestHandler<Request, Response> {
+public class Service2DataLoad implements RequestHandler<Request, Response> {
 
     static String CONTAINER_ID = "/tmp/container-id";
     static Charset CHARSET = Charset.forName("US-ASCII");
@@ -53,12 +49,13 @@ public class Service1DataTransformation implements RequestHandler<Request, Respo
 
         // stamp container with uuid
         Response r = reg.StampContainer();
+        setCurrentDirectory("/tmp");
 
-        // *********************************************************************
-        // Implement Lambda Function Here
-        // *********************************************************************
         String bucketname = request.getBucketname();
         String filename = request.getFilename();
+        String[] names = filename.split("/");
+        String dbname = names[names.length - 1] + ".db";
+        dbname = dbname.replace(' ', '_');
 
         AmazonS3 s3Client = AmazonS3ClientBuilder.standard().build();
         //get object file using source bucket and srcKey name
@@ -67,69 +64,87 @@ public class Service1DataTransformation implements RequestHandler<Request, Respo
         InputStream objectData = s3Object.getObjectContent();
         //scanning data line by line
         Scanner scanner = new Scanner(objectData);
-        StringWriter sw = new StringWriter();
         String line = scanner.nextLine();
-        // Add column [Order Processing Time] at the end of first row
-        line += ",Order Processing Time,Gross Margin\n";
-        sw.append(line);
-        // Check duplication order ID
-        Set<Long> orderIdSet = new HashSet<>();
-        // Build a map
-        String[] p1 = {"L", "M", "H", "C"};
-        String[] p2 = {"Low", "Medium", "High", "Critical"};
-        Map<String, String> priorityMap = new HashMap<>();
-        for (int i=0; i<p1.length; i++) {
-            priorityMap.put(p1[i], p2[i]);
-        }
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-        while (scanner.hasNext()) {
-            line = scanner.nextLine();
-            String[] token = line.split(",");
-            // Calculate processing days
-            String orderDateString = token[5];
-            String shipDateString = token[7];
-            int processingDays = 0;
-            long orderId = Long.parseLong(token[6]);
-            // Duplication detect, ignore current record
-            if (orderIdSet.contains(orderId)) {
-                System.out.println("Duplication detect: " + orderId);
-                continue;
+
+        try {
+            // Connection string for a file-based SQlite DB
+            Connection con = DriverManager.getConnection("jdbc:sqlite:" + dbname); 
+
+            // Detect if the table 'salesrecords' exists in the database
+            PreparedStatement ps = con.prepareStatement("SELECT name FROM sqlite_master WHERE type='table' AND name='salesrecords'");
+            ResultSet rs = ps.executeQuery();
+            if (!rs.next()) {
+                // 'salesrecords' does not exist, and should be created
+                logger.log("trying to create table 'salesrecords'");
+                ps = con.prepareStatement(
+                    "CREATE TABLE salesrecords (" +
+                        "Region text," +
+                        "Country text," +
+                        "Item_Type text," +
+                        "Sales_Channel text," +
+                        "Order_Priority text," +
+                        "Order_Date date," +
+                        "Order_ID integer PRIMARY KEY," +
+                        "Ship_Date date," +
+                        "Units_Sold integer," +
+                        "Unit_Price float," +
+                        "Unit_Cost float," +
+                        "Total_Revenue float," +
+                        "Total_Cost float," +
+                        "Total_Profit float," +
+                        "Order_Processing_Time integer," +
+                        "Gross_Margin float" +
+                    ");"
+                );
+                ps.execute();
             }
-            orderIdSet.add(orderId);
-            try {
-                Date orderDate = dateFormat.parse(orderDateString);
-                Date shipDate = dateFormat.parse(shipDateString);
-                long difference = shipDate.getTime() - orderDate.getTime();
-                processingDays = (int) (difference / 1000 / 60/ 60 / 24);
-            } catch (ParseException ex) {
-                Logger.getLogger(Service1DataTransformation.class.getName()).log(Level.SEVERE, null, ex);
+            rs.close();
+            
+            // Insert row into salesrecords
+            while (scanner.hasNext()) {
+                line = scanner.nextLine();
+                line.replace("'", "''");
+                String[] token = line.split(",");
+
+                for (int i = 0; i < 5; i++) token[i] = "'" + token[i] + "'";
+
+                String[] date = token[5].split("/");
+                token[5] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
+                date = token[7].split("/");
+                token[7] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
+
+                line = String.join(",", token);
+
+                ps = con.prepareStatement("INSERT INTO salesrecords values(" + line + ");");
+                ps.execute();
             }
-            // Calculate Gross Margin
-            double profit = Double.parseDouble(token[token.length -1]);
-            double revenue = Double.parseDouble(token[token.length -3]);
-            double grossMargin = profit / revenue;
-            // Map "L" to "Low", "M" to "Medium", "H" to "High", and "C" to "Critical"
-            String priority = token[4];
-            token[4] = priorityMap.get(priority);
-            // Convert to String and write back to StringWriter.
-            line = String.join(",", token);
-            String lastToken = String.format(",%d,%.2f\n", processingDays, grossMargin);
-            line += lastToken;
-            sw.append(line);
+            con.close();
+            
         }
+        catch (SQLException sqle) {
+            logger.log("DB ERROR:" + sqle.toString());
+            sqle.printStackTrace();
+        }
+
         scanner.close();
-        
-        byte[] bytes = sw.toString().getBytes(StandardCharsets.UTF_8);
-        InputStream is = new ByteArrayInputStream(bytes);
-        ObjectMetadata meta = new ObjectMetadata();
-        meta.setContentLength(bytes.length);
-        meta.setContentType("text/plain");
-        String[] names = filename.split("/");
-        String filename2 = "TransformedData/" + names[names.length -1];
-        s3Client.putObject(bucketname, filename2, is, meta);
-        r.setValue("Bucket: " + bucketname + " filename: " + filename + " processed.");
+        File file = new File("/tmp/"+dbname);
+        s3Client.putObject("tcss562.group.project", "SalesRecordsDB/" + dbname, file);
+        file.delete();
+
+        r.setValue("Bucket: " + bucketname + " filename: " + filename + " loaded. DBname: " + dbname);
         return r;
     }
+
+    public static boolean setCurrentDirectory(String directory_name) {
+        boolean result = false; // Boolean indicating whether directory was set
+        File directory;         // Desired current working directory
+
+        directory = new File(directory_name).getAbsoluteFile();
+        if (directory.exists() || directory.mkdirs())
+            result = (System.setProperty("user.dir", directory.getAbsolutePath()) != null);
+
+        return result;
+    }    
 
     // int main enables testing function from cmd line
     public static void main(String[] args) {
@@ -196,7 +211,7 @@ public class Service1DataTransformation implements RequestHandler<Request, Respo
         };
 
         // Create an instance of the class
-        Service1DataTransformation lt = new Service1DataTransformation();
+        Service2DataLoad lt = new Service2DataLoad();
         Request req = new Request();
         System.out.println("cmd-line param name=" + req.getBucketname());
         // Run the function
