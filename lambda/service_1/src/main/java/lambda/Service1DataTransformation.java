@@ -65,13 +65,11 @@ public class Service1DataTransformation implements RequestHandler<Request, Respo
         S3Object s3Object = s3Client.getObject(new GetObjectRequest(bucketname, filename));
         //get content of the file
         InputStream objectData = s3Object.getObjectContent();
-        //scanning data line by line
-        String textToUpload = "";
         Scanner scanner = new Scanner(objectData);
         StringWriter sw = new StringWriter();
         String line = scanner.nextLine();
         // Add column [Order Processing Time] at the end of first row
-        line += ",Order Processing Time,Gross Margin\n";
+        line += ",Order Processing Days,Gross Margin\n";
         sw.append(line);
         // Check duplication order ID
         Set<Long> orderIdSet = new HashSet<>();
