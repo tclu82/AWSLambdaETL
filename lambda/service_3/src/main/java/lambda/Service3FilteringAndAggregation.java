@@ -14,7 +14,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import faasinspector.register;
-import org.json.*;
+import model.Value;
 
 import java.io.File;
 import java.nio.charset.Charset;
@@ -24,9 +24,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.LinkedList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.lang.StringBuilder;
+import java.util.List;
 
 /**
  * uwt.lambda_test::handleRequest
@@ -62,7 +60,8 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
         //get db file using source bucket and srcKey name and save to /tmp
         File file = new File("/tmp/"+dbname);
         s3Client.getObject(new GetObjectRequest(bucketname, filename), file);
-        StringBuilder sb = new StringBuilder();
+        // StringBuilder sb = new StringBuilder();
+        List<Value> values = new LinkedList<>();
 
         try {
             // Connection string for a file-based SQlite DB
@@ -86,20 +85,14 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
             rs = ps.executeQuery();
 
             // Write query result to output
-            String[] aggs = aggregation.split(",");
-            LinkedList<String> result = new LinkedList<>();
+            String[] aggregations = aggregation.split(",");
             if (rs.next()) {
-                sb.append("{");
-                for (int i = 0; i < aggs.length; i++) {
-                    sb.append("\"" + aggs[i] + "\":");
-                    if (i != aggs.length-1) {
-                        sb.append(rs.getString(i+1) + ",");
-                    } else {
-                        sb.append(rs.getString(i+1));
-                    }
+                for (int i=0; i<aggregations.length; i++) {
+                    query = aggregations[i];
+                    double result = Double.parseDouble(rs.getString(i+1));
+                    Value value = new Value(query, result);
+                    values.add(value);
                 }
-                sb.append("}");
-                result.add(sb.toString());
             } else {
                 // No result when query with given filter
                 logger.log("No result when query");
@@ -111,7 +104,8 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
             logger.log("DB ERROR:" + sqle.toString());
             sqle.printStackTrace();
         }
-        r.setValue(sb.toString());
+        // r.setValue(sb.toString());
+        r.setValue(values);
         return r;
     }
 
