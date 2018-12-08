@@ -6,7 +6,7 @@
 package lambda;
 
 import faasinspector.fiResponse;
-import model.Value;
+import model.QueryResult;
 import java.util.List;
 
 /**
@@ -23,20 +23,20 @@ public class Response extends fiResponse {
     //
 
     // Return value
-    private List<Value> values;
+    private List<QueryResult> results;
 
-    public List<Value>  getValue()
+    public List<QueryResult>  getResults()
     {
-        return values;
+        return results;
     }
-    public void setValue(List<Value>  values)
+    public void setResults(List<QueryResult>  results)
     {
-        this.values = values;
+        this.results = results;
     }
 
     @Override
     public String toString()
     {
-        return "value=" + this.getValue() + super.toString(); 
+        return "value=" + this.getResults() + super.toString(); 
     }
 }

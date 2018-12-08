@@ -14,7 +14,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import faasinspector.register;
-import model.Value;
+import model.QueryResult;
 
 import java.io.File;
 import java.nio.charset.Charset;
@@ -61,7 +61,7 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
         File file = new File("/tmp/"+dbname);
         s3Client.getObject(new GetObjectRequest(bucketname, filename), file);
         // StringBuilder sb = new StringBuilder();
-        List<Value> values = new LinkedList<>();
+        List<QueryResult> results = new LinkedList<>();
 
         try {
             // Connection string for a file-based SQlite DB
@@ -89,9 +89,9 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
             if (rs.next()) {
                 for (int i=0; i<aggregations.length; i++) {
                     query = aggregations[i];
-                    double result = Double.parseDouble(rs.getString(i+1));
-                    Value value = new Value(query, result);
-                    values.add(value);
+                    double value = Double.parseDouble(rs.getString(i+1));
+                    QueryResult queryResult = new QueryResult(query, value);
+                    results.add(queryResult);
                 }
             } else {
                 // No result when query with given filter
@@ -105,7 +105,8 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
             sqle.printStackTrace();
         }
         // r.setValue(sb.toString());
-        r.setValue(values);
+        // r.setValue(results);
+        r.setResults(results);
         return r;
     }
 
