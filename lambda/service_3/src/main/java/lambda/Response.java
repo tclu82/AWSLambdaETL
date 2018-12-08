@@ -6,7 +6,8 @@
 package lambda;
 
 import faasinspector.fiResponse;
-import java.lang.annotation.Native;
+import model.QueryResult;
+import java.util.List;
 
 /**
  *
@@ -22,20 +23,20 @@ public class Response extends fiResponse {
     //
 
     // Return value
-    private String value;
-    public String getValue()
+    private List<QueryResult> results;
+
+    public List<QueryResult>  getResults()
     {
-        return value;
+        return results;
     }
-    public void setValue(String value)
+    public void setResults(List<QueryResult>  results)
     {
-        this.value = value;
+        this.results = results;
     }
 
     @Override
     public String toString()
     {
-        return "value=" + this.getValue() + super.toString(); 
+        return "value=" + this.getResults() + super.toString(); 
     }
-
 }
