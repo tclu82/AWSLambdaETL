@@ -13,10 +13,9 @@ import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
 import faasinspector.register;
+import org.json.*;
 
-import java.io.InputStream;
 import java.io.File;
 import java.nio.charset.Charset;
 import java.sql.Connection;
@@ -24,17 +23,17 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.lang.StringBuilder;
 
 /**
  * uwt.lambda_test::handleRequest
  *
  * @author wlloyd
  */
-public class Service2DataLoad implements RequestHandler<Request, Response> {
+public class Service3FilteringAndAggregation implements RequestHandler<Request, Response> {
 
     static String CONTAINER_ID = "/tmp/container-id";
     static Charset CHARSET = Charset.forName("US-ASCII");
@@ -50,88 +49,69 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
         // stamp container with uuid
         Response r = reg.StampContainer();
         setCurrentDirectory("/tmp");
-
+        
+        String filter =  request.getFilter();
+        String aggregation =  request.getAggregation();
+        
         String bucketname = request.getBucketname();
         String filename = request.getFilename();
         String[] names = filename.split("/");
-        String dbname = names[names.length - 1] + ".db";
-        dbname = dbname.replace(' ', '_');
+        String dbname = names[names.length - 1];
 
         AmazonS3 s3Client = AmazonS3ClientBuilder.standard().build();
-        //get object file using source bucket and srcKey name
-        S3Object s3Object = s3Client.getObject(new GetObjectRequest(bucketname, filename));
-        //get content of the file
-        InputStream objectData = s3Object.getObjectContent();
-        //scanning data line by line
-        Scanner scanner = new Scanner(objectData);
-        String line = scanner.nextLine();
+        //get db file using source bucket and srcKey name and save to /tmp
+        File file = new File("/tmp/"+dbname);
+        s3Client.getObject(new GetObjectRequest(bucketname, filename), file);
+        StringBuilder sb = new StringBuilder();
 
         try {
             // Connection string for a file-based SQlite DB
             Connection con = DriverManager.getConnection("jdbc:sqlite:" + dbname); 
 
             // Detect if the table 'salesrecords' exists in the database
-            PreparedStatement ps = con.prepareStatement("SELECT name FROM sqlite_master WHERE type='table' AND name='salesrecords'");
+            PreparedStatement ps = con.prepareStatement(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='salesrecords'"
+                );
             ResultSet rs = ps.executeQuery();
             if (!rs.next()) {
-                // 'salesrecords' does not exist, and should be created
-                logger.log("trying to create table 'salesrecords'");
-                ps = con.prepareStatement(
-                    "CREATE TABLE salesrecords (" +
-                        "Region text," +
-                        "Country text," +
-                        "Item_Type text," +
-                        "Sales_Channel text," +
-                        "Order_Priority text," +
-                        "Order_Date date," +
-                        "Order_ID integer PRIMARY KEY," +
-                        "Ship_Date date," +
-                        "Units_Sold integer," +
-                        "Unit_Price float," +
-                        "Unit_Cost float," +
-                        "Total_Revenue float," +
-                        "Total_Cost float," +
-                        "Total_Profit float," +
-                        "Order_Processing_Time integer," +
-                        "Gross_Margin float" +
-                    ");"
-                );
-                ps.execute();
+                // 'salesrecords' does not exist, throw exception
+                logger.log("No such table: 'salesrecords'");
+                throw new SQLException("No such table: 'salesrecords'");
             }
             rs.close();
             
-            // Insert row into salesrecords
-            while (scanner.hasNext()) {
-                line = scanner.nextLine();
-                line.replace("'", "''");
-                String[] token = line.split(",");
+            // create query from request
+            String query = "SELECT " + aggregation + " FROM salesrecords WHERE " + filter;
+            ps = con.prepareStatement(query);
+            rs = ps.executeQuery();
 
-                for (int i = 0; i < 5; i++) token[i] = "'" + token[i] + "'";
-
-                String[] date = token[5].split("/");
-                token[5] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
-                date = token[7].split("/");
-                token[7] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
-
-                line = String.join(",", token);
-
-                ps = con.prepareStatement("INSERT INTO salesrecords values(" + line + ");");
-                ps.execute();
+            // Write query result to output
+            String[] aggs = aggregation.split(",");
+            LinkedList<String> result = new LinkedList<>();
+            if (rs.next()) {
+                sb.append("{");
+                for (int i = 0; i < aggs.length; i++) {
+                    sb.append("\"" + aggs[i] + "\":");
+                    if (i != aggs.length-1) {
+                        sb.append(rs.getString(i+1) + ",");
+                    } else {
+                        sb.append(rs.getString(i+1));
+                    }
+                }
+                sb.append("}");
+                result.add(sb.toString());
+            } else {
+                // No result when query with given filter
+                logger.log("No result when query");
             }
+            rs.close();
             con.close();
-            
         }
         catch (SQLException sqle) {
             logger.log("DB ERROR:" + sqle.toString());
             sqle.printStackTrace();
         }
-
-        scanner.close();
-        File file = new File("/tmp/"+dbname);
-        s3Client.putObject("tcss562.group.project", "SalesRecordsDB/" + dbname, file);
-        file.delete();
-
-        r.setValue("Bucket: " + bucketname + " filename: " + filename + " loaded. DBname: " + dbname);
+        r.setValue(sb.toString());
         return r;
     }
 
@@ -144,7 +124,7 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
             result = (System.setProperty("user.dir", directory.getAbsolutePath()) != null);
 
         return result;
-    }    
+    }
 
     // int main enables testing function from cmd line
     public static void main(String[] args) {
@@ -211,7 +191,7 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
         };
 
         // Create an instance of the class
-        Service2DataLoad lt = new Service2DataLoad();
+        Service3FilteringAndAggregation lt = new Service3FilteringAndAggregation();
         Request req = new Request();
         System.out.println("cmd-line param name=" + req.getBucketname());
         // Run the function
