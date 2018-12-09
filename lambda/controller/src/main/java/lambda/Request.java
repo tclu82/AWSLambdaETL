@@ -1,0 +1,43 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package lambda;
+
+/**
+ *
+ * @author wlloyd
+ */
+public class Request {
+
+    private String bucketname;
+    private String filename;
+
+    public Request() {
+    }
+
+    public Request(String bucketname, String fileName, String filter, String aggregation) {
+        this();
+        this.bucketname = bucketname;
+        this.filename = fileName;
+        this.filter = filter;
+        this.aggregation = aggregation;
+    }
+
+    public String getBucketname() {
+        return bucketname;
+    }
+    
+    public void setBucketname(String bucketname) {
+        this.bucketname = bucketname;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+    
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+}
