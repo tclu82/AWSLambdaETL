@@ -17,12 +17,10 @@ public class Request {
     public Request() {
     }
 
-    public Request(String bucketname, String fileName, String filter, String aggregation) {
+    public Request(String bucketname, String fileName) {
         this();
         this.bucketname = bucketname;
         this.filename = fileName;
-        this.filter = filter;
-        this.aggregation = aggregation;
     }
 
     public String getBucketname() {

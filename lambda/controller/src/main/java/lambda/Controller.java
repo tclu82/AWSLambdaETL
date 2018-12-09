@@ -14,8 +14,10 @@ import com.amazonaws.services.lambda.AWSLambda;
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
 import com.amazonaws.services.lambda.model.InvokeRequest;
 import com.amazonaws.services.lambda.model.InvokeResult;
+import com.amazonaws.regions.Regions;
 import faasinspector.register;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * uwt.lambda_test::handleRequest
@@ -48,12 +50,11 @@ public class Controller implements RequestHandler<Request, Response> {
         // Build the client, which will ultimately invoke the function"bucketname": "tcss562.group.project",
         AWSLambda client = builder.build();
         
-        String payload = "{\"filename\":\"" + getBucketname + "\",\"filename\":\"data/" + filename + "\"}"; 
+        String payload = "{\"bucketname\":\"" + bucketname + "\",\"filename\":\"data/" + filename + "\"}"; 
         logger.log("Input JSON: " + payload);
 
         InvokeResult result = InvokeLambda(client, "service1_data_transformation", payload);
-        
-        r.setValue(results.getPayload());
+        r.setValue(StandardCharsets.UTF_8.decode(result.getPayload()));
         return r;
     }
 
