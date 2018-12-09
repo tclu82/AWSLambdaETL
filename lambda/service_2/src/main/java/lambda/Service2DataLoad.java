@@ -29,6 +29,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.sound.sampled.SourceDataLine;
+
 /**
  * uwt.lambda_test::handleRequest
  *
@@ -103,7 +105,7 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
             // Insert row into salesrecords
             while (scanner.hasNext()) {
                 line = scanner.nextLine();
-                line.replace("'", "''");
+                line = line.replace("\'","\'\'");
                 String[] token = line.split(",");
 
                 for (int i = 0; i < 5; i++) token[i] = "'" + token[i] + "'";
@@ -114,7 +116,6 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
                 token[7] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
 
                 line = String.join(",", token);
-
                 ps = con.prepareStatement("INSERT INTO salesrecords values(" + line + ");");
                 ps.execute();
             }
