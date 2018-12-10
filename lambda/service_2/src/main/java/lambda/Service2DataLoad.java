@@ -103,18 +103,21 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
             rs.close();
             
             // Insert row into salesrecords
+            StringBuilder sb = new StringBuilder();
             while (scanner.hasNext()) {
                 line = scanner.nextLine();
                 line = line.replace("\'","\'\'");
                 String[] token = line.split(",");
 
-                for (int i = 0; i < 5; i++) token[i] = "'" + token[i] + "'";
-
-                String[] date = token[5].split("/");
-                token[5] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
-                date = token[7].split("/");
-                token[7] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
-
+                for (int i = 0; i < 5; i++) {
+                    token[i] = "'" + token[i] + "'";
+                }
+                sb = new StringBuilder("\'" + token[5]).append('\'');
+                token[5] = sb.toString();
+                // String[] date = token[5].split("/");
+                // token[5] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
+                // date = token[7].split("/");
+                // token[7] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
                 line = String.join(",", token);
                 ps = con.prepareStatement("INSERT INTO salesrecords values(" + line + ");");
                 ps.execute();
