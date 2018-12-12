@@ -80,7 +80,13 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
             rs.close();
             
             // create query from request
-            String query = "SELECT " + aggregation + " FROM salesrecords WHERE " + filter;
+            String query = "";
+            // Check if filter argument is passed
+            if (filter == null || filter.equals("") || filter.equals("*")) {
+                query = "SELECT " + aggregation + " FROM salesrecords";
+            } else { 
+                query = "SELECT " + aggregation + " FROM salesrecords WHERE " + filter;
+            }
             ps = con.prepareStatement(query);
             rs = ps.executeQuery();
 
@@ -104,8 +110,6 @@ public class Service3FilteringAndAggregation implements RequestHandler<Request, 
             logger.log("DB ERROR:" + sqle.toString());
             sqle.printStackTrace();
         }
-        // r.setValue(sb.toString());
-        // r.setValue(results);
         r.setResults(results);
         return r;
     }
