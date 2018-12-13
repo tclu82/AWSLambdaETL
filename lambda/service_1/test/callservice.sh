@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # JSON object to pass to Lambda Function
-json={"\"bucketname\"":"\"tcss562.group.project\"","\"filename\"":"\"data/100\u0020Sales\u0020Records.csv\""}
+json={"\"bucketname\"":"\"tcss562.group.project\"","\"filename\"":"\"data/$1\u0020Sales\u0020Records.csv\""}
 
 echo $json
 echo "Invoking Lambda function using API Gateway"
@@ -14,7 +14,7 @@ echo ""
 echo ""
 
 # echo "Invoking Lambda function using AWS CLI"
-# time output=`aws lambda invoke --invocation-type RequestResponse --function-name createCSV --region us-east-1 --payload $json /dev/stdout | head -n 1 | head -c -2 ; echo`
+# time output=`aws lambda invoke --invocation-type RequestResponse --function-name service1_data_transformation --region us-east-1 --payload $json /dev/stdout | head -n 1 | head -c -2 ; echo`
 # echo ""
 # echo "AWS CLI RESULT:"
 # echo $output
