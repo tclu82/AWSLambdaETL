@@ -101,29 +101,46 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
                 ps.execute();
             }
             rs.close();
-            
+
+            ps = con.prepareStatement("PRAGMA synchronous = OFF;");
+            ps.execute();
+
+            ps = con.prepareStatement("BEGIN");
+            ps.execute();
+            ps.close();
+
+            logger.log("DB insertion start.");
+            // int count = 0;
+
             // Insert row into salesrecords
-            StringBuilder sb = new StringBuilder();
             while (scanner.hasNext()) {
                 line = scanner.nextLine();
                 line = line.replace("\'","\'\'");
                 String[] token = line.split(",");
 
-                for (int i = 0; i < 5; i++) {
-                    token[i] = "'" + token[i] + "'";
-                }
-                sb = new StringBuilder("\'" + token[5]).append('\'');
-                token[5] = sb.toString();
-                // String[] date = token[5].split("/");
-                // token[5] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
-                // date = token[7].split("/");
-                // token[7] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
+                for (int i = 0; i < 5; i++) token[i] = "'" + token[i] + "'";
+
+                String[] date = token[5].split("/");
+                token[5] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
+                date = token[7].split("/");
+                token[7] = "'" + date[2] + "-" + date[0] + "-" + date[1] + "'";
+
                 line = String.join(",", token);
                 ps = con.prepareStatement("INSERT INTO salesrecords values(" + line + ");");
                 ps.execute();
+                ps.close();
+
+                // if (count % 100000 == 0) 
+                //     logger.log("10W records inserted");
+                // count ++;
             }
+
+            ps = con.prepareStatement("COMMIT");
+            ps.execute();
+            ps.close();
+
             con.close();
-            
+            logger.log("DB insertion end.");
         }
         catch (SQLException sqle) {
             logger.log("DB ERROR:" + sqle.toString());
@@ -135,7 +152,10 @@ public class Service2DataLoad implements RequestHandler<Request, Response> {
         s3Client.putObject("tcss562.group.project", "SalesRecordsDB/" + dbname, file);
         file.delete();
 
-        r.setValue("Bucket: " + bucketname + " filename: " + filename + " loaded. DBname: " + dbname);
+        String msg = "Bucket: " + bucketname + " filename: " + filename + " loaded. DBname: " + dbname;
+
+        logger.log(msg);
+        r.setValue(msg);
         return r;
     }
 
