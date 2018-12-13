@@ -15,5 +15,5 @@ echo "Invoking Lambda function using AWS CLI"
 time output=`aws lambda invoke --invocation-type RequestResponse --function-name service2_data_load --region us-east-1 --payload $json /dev/stdout | head -n 1 | head -c -2 ; echo`
 echo ""
 echo "AWS CLI RESULT:"
-echo $output
+echo $output | jq
 echo ""
